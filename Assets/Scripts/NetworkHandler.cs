@@ -7,7 +7,7 @@ using Unity.Netcode;
 public class NetworkHandler : NetworkBehaviour
 {
     // Start is called before the first frame update
-    void Start() {
+   void Start() {
         NetworkManager.OnClientStarted += OnClientStarted;
         NetworkManager.OnServerStarted += OnServerStarted;
     }

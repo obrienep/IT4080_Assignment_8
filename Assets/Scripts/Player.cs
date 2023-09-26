@@ -39,7 +39,7 @@ public class Player : NetworkBehaviour
         playerBody.GetComponent<MeshRenderer>().material.color = playerColorNetVar.Value;
     }
 
-    [ServerRpc]
+    [ServerRpc(RequireOwnership = true)]
     private void MoveServerRpc(Vector3 movement, Vector3 rotation) {
         transform.Translate(movement);
         transform.Rotate(rotation);

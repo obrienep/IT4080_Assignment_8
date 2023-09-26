@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
+using UnityEditor;
 
 public class Arena1Game : NetworkBehaviour {
 
@@ -21,10 +22,15 @@ public class Arena1Game : NetworkBehaviour {
     private void SpawnPlayers() {
         foreach(ulong clientId in NetworkManager.ConnectedClientsIds)
         {
-            Player playerSpawn = Instantiate(playerPrefab, NextPosition(), Quaternion.identity);
+            Player prefab = playerPrefab;
+            if(clientId == NetworkManager.LocalClientId) {
+                prefab = playerHatPrefab;
+            }
+            Player playerSpawn = Instantiate(prefab, NextPosition(), Quaternion.identity);
             playerSpawn.GetComponent<NetworkObject>().SpawnWithOwnership(clientId);
             playerSpawn.playerColorNetVar.Value = NextColor();
         }
+
     }
     
 
