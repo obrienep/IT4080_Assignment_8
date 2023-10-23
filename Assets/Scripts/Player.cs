@@ -5,28 +5,91 @@ using Unity.Netcode;
 
 public class Player : NetworkBehaviour
 {
-    public float movementSpeed = 50f;
-    public float rotationSpeed = 130f;
-    public NetworkVariable<Color> playerColorNetVar = new NetworkVariable<Color>(Color.red);
+
+    public NetworkVariable<Color> PlayerColor = new NetworkVariable<Color>(Color.red);
+    public NetworkVariable<int> ScoreNetVar = new NetworkVariable<int>(0);
+    public BulletSpawner bulletSpawner;
 
     private Camera playerCamera;
     private GameObject playerBody;
+    public float movementSpeed = 50f;
+    public float rotationSpeed = 130f;
 
-    private void Start() {
+
+    private void NetworkInit()
+    {
+        playerBody = transform.Find("PlayerBody").gameObject;
         playerCamera = transform.Find("Camera").GetComponent<Camera>();
         playerCamera.enabled = IsOwner;
         playerCamera.GetComponent<AudioListener>().enabled = IsOwner;
-        playerBody = transform.Find("PlayerBody").gameObject;
-        ApplyColor();
-    }
 
-    private void Update() {
-        if (IsOwner) 
+        ApplyPlayerColor();
+        PlayerColor.OnValueChanged += OnPlayerColorChanged;
+
+        if (IsClient)
         {
-        OwnerHandleInput();
+            ScoreNetVar.OnValueChanged += ClientOnScoreValueChanged;
         }
     }
-    private void OwnerHandleInput() {
+    private void Start() 
+    {
+        NetworkHelper.Log(this, "Start");
+     }
+
+    private void Awake()
+    {
+        NetworkHelper.Log(this, "Awake");
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        NetworkHelper.Log(this, "OnNetworkSpawn");
+        NetworkInit();
+        base.OnNetworkSpawn();
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (IsServer)
+        {
+            ServerHandleCollision(collision);
+        }
+    }
+
+    private void ClientOnScoreValueChanged(int old, int current)
+    {
+        if (IsOwner)
+        {
+            NetworkHelper.Log(this, $"My score is {ScoreNetVar.Value}");
+        }
+    }
+
+    private void ServerHandleCollision(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("bullet"))
+        {
+            ulong ownerId = collision.gameObject.GetComponent<NetworkObject>().OwnerClientId;
+            NetworkHelper.Log(this, 
+                $"Hit by {collision.gameObject.name} " + 
+                $"owned by {ownerId}");
+            Player other = NetworkManager.Singleton.ConnectedClients[ownerId].PlayerObject.GetComponent<Player>();
+            other.ScoreNetVar.Value += 1;
+            Destroy(collision.gameObject);
+        }
+    }
+
+    private void Update() 
+    {
+        if (IsOwner) {
+        OwnerHandleMovementInput();
+            if (Input.GetButtonDown("Fire1"))
+            {
+                NetworkHelper.Log("Requesting Fire");
+                bulletSpawner.FireServerRpc();
+            }
+        }
+    }
+    private void OwnerHandleMovementInput() {
         Vector3 movement = CalcMovement();
         Vector3 rotation = CalcRotation();
 
@@ -35,8 +98,14 @@ public class Player : NetworkBehaviour
         }
     }
 
-    private void ApplyColor() {
-        playerBody.GetComponent<MeshRenderer>().material.color = playerColorNetVar.Value;
+    private void ApplyPlayerColor() {
+        NetworkHelper.Log(this, $"Applying color {PlayerColor.Value}");
+        playerBody.GetComponent<MeshRenderer>().material.color = PlayerColor.Value;
+    }
+
+    public void OnPlayerColorChanged(Color previous, Color current)
+    {
+        ApplyPlayerColor();
     }
 
     [ServerRpc(RequireOwnership = true)]

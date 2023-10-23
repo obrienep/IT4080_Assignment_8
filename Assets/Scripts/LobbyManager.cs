@@ -21,9 +21,9 @@ public class LobbyManager : NetworkBehaviour
     }
 
     private void OnServerStarted() {
-        StartGame();
-        //startButton.gameObject.SetActive(true);
-        //statusLabel.text = "Press Start";
+        //StartGame();
+        startButton.gameObject.SetActive(true);
+        statusLabel.text = "Press Start";
     }
     private void OnClientStarted() {
         if (!IsHost) {
@@ -36,7 +36,7 @@ public class LobbyManager : NetworkBehaviour
     }
 
     public void StartGame() {
-        NetworkManager.SceneManager.LoadScene("TestChat", 
+        NetworkManager.SceneManager.LoadScene("Arena1Game", 
         UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
     
