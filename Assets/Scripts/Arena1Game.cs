@@ -11,24 +11,26 @@ public class Arena1Game : NetworkBehaviour {
     public Camera arenaCamera;
     private int positionIndex = 0;
 
+    private NetworkedPlayers networkedPlayers;
+
     void Start() {
         arenaCamera.enabled = !IsClient;
         arenaCamera.GetComponent<AudioListener>().enabled = !IsClient;
+        networkedPlayers = GameObject.Find("NetworkedPlayers").GetComponent<NetworkedPlayers>();
+        NetworkHelper.Log($"Players = {networkedPlayers.allNetPlayers.Count}");
         if (IsServer) {
         SpawnPlayers();
         }
+
     }
 
     private void SpawnPlayers() {
-        foreach(ulong clientId in NetworkManager.ConnectedClientsIds)
+        foreach(NetworkPlayerInfo info in networkedPlayers.allNetPlayers)
         {
             Player prefab = playerPrefab;
-            if(clientId == NetworkManager.LocalClientId) {
-                prefab = playerHatPrefab;
-            }
             Player playerSpawn = Instantiate(prefab, NextPosition(), Quaternion.identity);
-            playerSpawn.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId);
-            playerSpawn.PlayerColor.Value = NextColor();
+            playerSpawn.GetComponent<NetworkObject>().SpawnAsPlayerObject(info.clientId);
+            playerSpawn.PlayerColor.Value = info.color;
         }
 
     }
@@ -42,13 +44,7 @@ public class Arena1Game : NetworkBehaviour {
         new Vector3(0, 2, -4)
     };
 
-    private int colorIndex = 0;
-    private Color[] playerColors = new Color[] {
-        Color.blue,
-        Color.green,
-        Color.yellow,
-        Color.magenta,
-    };
+
 
 
     private Vector3 NextPosition() {
@@ -61,12 +57,4 @@ public class Arena1Game : NetworkBehaviour {
     }
 
 
-    private Color NextColor() {
-        Color newColor = playerColors[colorIndex];
-        colorIndex += 1;
-        if (colorIndex > playerColors.Length - 1) {
-            colorIndex = 0;
-        }
-        return newColor;
-    }
 }

@@ -21,9 +21,9 @@ public class LobbyManager : NetworkBehaviour
     }
 
     private void OnServerStarted() {
-        //StartGame();
-        startButton.gameObject.SetActive(true);
-        statusLabel.text = "Press Start";
+        GotoLobby();
+        //startButton.gameObject.SetActive(true);
+        //statusLabel.text = "Press Start";
     }
     private void OnClientStarted() {
         if (!IsHost) {
@@ -33,6 +33,11 @@ public class LobbyManager : NetworkBehaviour
 
     private void OnStartButtonClicked() {
         StartGame();
+    }
+
+    public void GotoLobby()
+    {
+        NetworkManager.SceneManager.LoadScene("Lobby", UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
 
     public void StartGame() {
