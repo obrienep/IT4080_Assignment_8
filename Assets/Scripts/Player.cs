@@ -8,12 +8,16 @@ public class Player : NetworkBehaviour
 
     public NetworkVariable<Color> PlayerColor = new NetworkVariable<Color>(Color.red);
     public NetworkVariable<int> ScoreNetVar = new NetworkVariable<int>(0);
+    public NetworkVariable<bool> isGrounded = new NetworkVariable<bool>(true);
+    public NetworkVariable<bool> inBooster = new NetworkVariable<bool>(false);
     public BulletSpawner bulletSpawner;
 
     private Camera playerCamera;
     private GameObject playerBody;
     public float movementSpeed = 50f;
     public float rotationSpeed = 130f;
+    public float jumpHeight = 7.5f;
+    private int jumpCount = 0;
 
 
     private void NetworkInit()
@@ -63,6 +67,26 @@ public class Player : NetworkBehaviour
             if(other.CompareTag("power_up")) {
                 other.GetComponent<BasePowerUp>().ServerPickUp(this);
             }
+
+            if(other.CompareTag("boost"))
+            {
+                ulong ownerId = gameObject.GetComponent<NetworkObject>().OwnerClientId;
+                Player player = NetworkManager.Singleton.ConnectedClients[ownerId].PlayerObject.GetComponent<Player>();
+                player.inBooster.Value = true;
+            }
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (IsServer)
+        {
+            if (other.CompareTag("boost"))
+            {
+                ulong ownerId = gameObject.GetComponent<NetworkObject>().OwnerClientId;
+                Player player = NetworkManager.Singleton.ConnectedClients[ownerId].PlayerObject.GetComponent<Player>();
+                player.inBooster.Value = false;
+            }
         }
     }
 
@@ -85,6 +109,14 @@ public class Player : NetworkBehaviour
             Player other = NetworkManager.Singleton.ConnectedClients[ownerId].PlayerObject.GetComponent<Player>();
             other.ScoreNetVar.Value += 1;
             Destroy(collision.gameObject);
+        }
+
+        if (collision.gameObject.CompareTag("floor"))
+        {
+            ulong ownerId = this.gameObject.GetComponent<NetworkObject>().OwnerClientId;
+            Player other = NetworkManager.Singleton.ConnectedClients[ownerId].PlayerObject.GetComponent<Player>();
+            jumpCount = 0;
+            isGrounded.Value = true;
         }
     }
 
@@ -120,8 +152,8 @@ public class Player : NetworkBehaviour
 
     [ServerRpc(RequireOwnership = true)]
     private void MoveServerRpc(Vector3 movement, Vector3 rotation) {
-        transform.Translate(movement);
-        transform.Rotate(rotation);
+       transform.Translate(movement);
+       transform.Rotate(rotation);
     }
 
     // Rotate around the y axis when shift is not pressed
@@ -141,15 +173,59 @@ public class Player : NetworkBehaviour
         bool isShiftKeyDown = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
         float x_move = 0.0f;
         float z_move = Input.GetAxis("Vertical");
+        float gravity = 0f;
 
         if (isShiftKeyDown) {
             x_move = Input.GetAxis("Horizontal");
         }
 
+        if (isGrounded.Value == false)
+        {
+            gravity = -.2f;
+
+        } else { gravity = 0f; }
+
         Vector3 moveVect = new Vector3(x_move, 0, z_move);
+
+        if (Input.GetKey(KeyCode.Space))
+        {
+            jumpCount = 1;
+            NetworkHelper.Log(this, "I have jumped!");
+            moveVect = moveVect + new Vector3(0, 3, 0);
+        }
+
+
+        if (isGrounded.Value == false)
+        {
+            moveVect = new Vector3(x_move, gravity, z_move);
+        }
+
+        if (inBooster.Value == true)
+        {
+            moveVect = moveVect + new Vector3(0, 10f, 0);
+        }
         moveVect *= movementSpeed * Time.deltaTime;
 
         return moveVect;
     }
+
+    private void OnCollisionExit(Collision collision)
+    {
+        if (IsServer)
+        {
+            ServerHandleGravity(collision);
+        }
+    }
+
+    private void ServerHandleGravity(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("floor"))
+        {
+            ulong ownerId = gameObject.GetComponent<NetworkObject>().OwnerClientId;
+            Player other = NetworkManager.Singleton.ConnectedClients[ownerId].PlayerObject.GetComponent<Player>();
+            other.isGrounded.Value = false;
+        }
+    }
+
 
 }
